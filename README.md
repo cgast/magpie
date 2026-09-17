@@ -108,6 +108,8 @@ Point the agent at the binary and let it shell out. Because output is JSON by de
 
 > To read a Jira ticket, run `magpie jira read <KEY>` and parse the JSON. To find tickets, run `magpie jira search "<JQL>"`. To read a Confluence page and its children, run `magpie confluence read <url> --depth 1`.
 
+**Using Claude Code?** [.claude/skills/magpie/](.claude/skills/magpie/) has a ready-made skill covering the same ground (commands, credential troubleshooting, what's out of scope) so you don't have to paste instructions like the above into every session. Copy that folder into `.claude/skills/magpie/` in whichever project repo you want it available — a skill has to live in the repo the agent is working in, so it doesn't do anything sitting only in this one unless you're working directly in this repo.
+
 ## Notes on Goals
 
 Atlassian Goals has no REST API or official CLI — only a GraphQL gateway — and its schema is the least stable of the three. The two queries live in `internal/goals/goals.go` as editable constants. If a field name differs on your tenant, open the GraphiQL explorer linked from the [Goals GraphQL docs](https://developer.atlassian.com/platform/goals/goals-graphql-api/using-graphql-api/), confirm the field, and adjust the constant. The gateway host is your `*.atlassian.net` tenant (not `home.atlassian.com`), so `MAGPIE_SITE` must be set for Goals commands.
@@ -163,6 +165,7 @@ internal/output             JSON-default / Markdown emitter
 internal/jira               read issue, read board, JQL search
 internal/confluence         read page (+depth), CQL search
 internal/goals              read goal, list goals (GraphQL)
+.claude/skills/magpie        Claude Code skill template — copy into another repo to use
 ```
 
 ## License
