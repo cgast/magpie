@@ -32,25 +32,51 @@ make build          # -> ./bin/magpie
 make macos          # -> ./bin/magpie  (universal Intel + Apple Silicon)
 ```
 
-## Auth
+## Credentials
 
-Create one API token at <https://id.atlassian.com/manage-profile/security/api-tokens>. The same token works for Jira REST, Confluence REST, and the Goals GraphQL gateway. Put it in your environment:
+Need credentials for your own use of magpie (a script, a cron job, a coding agent)? Here's how to get set up without pinging anyone.
+
+1. **Generate an API token.** Go to [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens), sign in with your usual Atlassian account, and click **Create API token**. Give it a name that tells you where it's used (e.g. `magpie-cli`) so you can find and revoke it later. Copy the token — you won't be able to see it again.
+2. **Run the wizard:**
+
+   ```sh
+   magpie auth
+   ```
+
+   It asks for your email, your site (the `*.atlassian.net` hostname you see in the address bar in Jira/Confluence), and the token from step 1 (typed hidden, not echoed to the terminal). It verifies the credentials against Atlassian before saving anything, then stores them in `~/.config/magpie/.env` (owner-only permissions — `chmod 600`). Run it again any time to rotate a token; it shows your current values as defaults so you only need to retype what's changing.
+
+That's it — every other `magpie` command now picks the credentials up automatically. Under the hood this file is just a fallback: a real `MAGPIE_EMAIL`/`MAGPIE_TOKEN`/`MAGPIE_SITE` already set in the environment always wins over it, so cron jobs, CI, and agent sandboxes that export their own credentials are unaffected by what `magpie auth` wrote. That's also what keeps the tool predictable outside an interactive shell: no login flow to script around, just environment variables with one optional file underneath as a convenience.
+
+**Prefer plain environment variables** (no file at all — useful for cron, CI, or an agent's env)? Skip the wizard and export them yourself instead:
 
 ```sh
 export MAGPIE_EMAIL="you@example.com"
-export MAGPIE_TOKEN="your-api-token"
+export MAGPIE_TOKEN="the-token-from-step-1"
 export MAGPIE_SITE="example.atlassian.net"   # default site for search/list
 # optional; auto-resolved from the site if omitted:
 # export MAGPIE_CLOUD_ID="00000000-0000-0000-0000-000000000000"
 ```
 
-`ATLASSIAN_EMAIL` / `ATLASSIAN_API_TOKEN` / `ATLASSIAN_SITE` are accepted as fallbacks so the token can be shared with other tooling. No interactive login, no state files — which is what makes it work cleanly in cron and agents.
+`ATLASSIAN_EMAIL` / `ATLASSIAN_API_TOKEN` / `ATLASSIAN_SITE` work as fallback names too, so the token can be shared with other tooling.
+
+**Either way, check it worked:**
+
+```sh
+magpie whoami
+```
+
+A successful run prints your account details back to you. A 401 means the email/token pair is wrong; double-check for stray whitespace or an expired/revoked token. A 403 on a specific command usually means your account can see the site but lacks permission for that particular issue/page/board — that's a permissions problem in Jira/Confluence, not a magpie or credentials problem.
+
+Tokens are scoped to your account and inherit your existing Jira/Confluence/Goals permissions — magpie can't see anything you couldn't already see in the browser. Revoke a token any time from the same API tokens page without affecting anything else.
 
 ## Usage
 
 Every command accepts either a **pasted URL** or a **bare id/key** as its `location` — the tool parses the ids out of the URL for you.
 
 ```sh
+# Are my credentials working?
+magpie whoami
+
 # Jira
 magpie jira read https://example.atlassian.net/browse/PROJ-123
 magpie jira read PROJ-123 --markdown
@@ -69,12 +95,12 @@ magpie goals read GOAL-4
 
 ### Flags
 
-| Flag | Applies to | Meaning |
-|------|-----------|---------|
-| `--markdown` | all | human-readable output instead of JSON |
-| `--limit N` | searches, board, goals list | cap the number of results |
-| `--depth N` | `confluence read` | include N levels of child pages |
-| `--tql "..."` | `goals list` | TQL filter (default `(archived = false)`) |
+| Flag            | Applies to                  | Meaning                                    |
+| --------------- | --------------------------- | ------------------------------------------ |
+| `--markdown`  | all                         | human-readable output instead of JSON      |
+| `--limit N`   | searches, board, goals list | cap the number of results                  |
+| `--depth N`   | `confluence read`         | include N levels of child pages            |
+| `--tql "..."` | `goals list`              | TQL filter (default`(archived = false)`) |
 
 ## Using it from a coding agent
 
@@ -128,7 +154,8 @@ The release workflow (`.github/workflows/release.yml`) builds macOS + Linux bina
 ```
 main.go                     entrypoint
 cmd/dispatch.go             arg parsing + routing
-internal/config             credentials + defaults (one source of truth)
+cmd/auth.go                 interactive credentials wizard (`magpie auth`)
+internal/config             credentials + defaults (env vars, then ~/.config/magpie/.env)
 internal/httpclient         basic auth, retries, GraphQL — every call goes here
 internal/urlparse           URL/id -> typed target (shared "location" handling)
 internal/adf                Atlassian Document Format -> Markdown

@@ -31,3 +31,7 @@ macos:
 
 clean:
 	rm -rf bin
+
+## pkg: build a macOS .pkg installer into ./dist (macOS only)
+pkg:
+	VERSION=$(VERSION) ./scripts/build-pkg.sh

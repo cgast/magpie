@@ -41,8 +41,10 @@ Goals:
   magpie goals list [--tql "<TQL>"] [--limit N] [--markdown]
 
 Global:
-  --markdown   human-readable output (default is JSON)
-  version      print version
+  magpie auth     interactive wizard: prompt for credentials, verify, store them
+  magpie whoami   print the authenticated user (a credentials sanity check)
+  --markdown      human-readable output (default is JSON)
+  version         print version
 
 Auth (environment):
   MAGPIE_EMAIL      Atlassian account email     (or ATLASSIAN_EMAIL)
@@ -64,6 +66,10 @@ func Run(args []string) int {
 	case "help", "-h", "--help":
 		fmt.Print(usageText)
 		return 0
+	case "auth":
+		return runAuth(args[1:])
+	case "whoami":
+		return runWhoami(args[1:])
 	case "jira":
 		return runJira(args[1:])
 	case "confluence", "conf":
@@ -88,6 +94,30 @@ func services() (config.Config, *httpclient.Client, bool) {
 		return cfg, nil, false
 	}
 	return cfg, httpclient.New(cfg), true
+}
+
+// ---------- Whoami ----------
+
+func runWhoami(args []string) int {
+	fs := newFlags("whoami")
+	md := fs.Bool("markdown", false, "render as Markdown")
+	if !parse(fs, args) {
+		return 2
+	}
+	cfg, client, ok := services()
+	if !ok {
+		return 1
+	}
+	site, err := cfg.ResolveSite("")
+	if err != nil {
+		errln("%v", err)
+		return 1
+	}
+	svc := jira.Service{Client: client, Site: site}
+	c, cancel := ctx()
+	defer cancel()
+	me, err := svc.Whoami(c)
+	return emit(me, *md, err)
 }
 
 // ---------- Jira ----------

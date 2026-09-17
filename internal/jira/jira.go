@@ -129,6 +129,55 @@ func (bd Board) Markdown() string {
 	return b.String()
 }
 
+// Me is the authenticated user, as reported by the myself endpoint — a quick
+// way to confirm credentials are valid without running a search.
+type Me struct {
+	AccountID   string `json:"accountId"`
+	DisplayName string `json:"displayName"`
+	Email       string `json:"email,omitempty"`
+	TimeZone    string `json:"timeZone,omitempty"`
+	Site        string `json:"site"`
+}
+
+func (m Me) Markdown() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "# %s\n\n", m.DisplayName)
+	fmt.Fprintf(&b, "- **Account ID:** %s\n", m.AccountID)
+	if m.Email != "" {
+		fmt.Fprintf(&b, "- **Email:** %s\n", m.Email)
+	}
+	if m.TimeZone != "" {
+		fmt.Fprintf(&b, "- **Time zone:** %s\n", m.TimeZone)
+	}
+	fmt.Fprintf(&b, "- **Site:** %s\n", m.Site)
+	return b.String()
+}
+
+// Whoami calls the myself endpoint and returns the authenticated user —
+// confirmation that the configured credentials actually work.
+func (s Service) Whoami(ctx context.Context) (Me, error) {
+	body, err := s.Client.GetJSON(ctx, s.base()+"/rest/api/3/myself")
+	if err != nil {
+		return Me{}, err
+	}
+	var raw struct {
+		AccountID    string `json:"accountId"`
+		DisplayName  string `json:"displayName"`
+		EmailAddress string `json:"emailAddress"`
+		TimeZone     string `json:"timeZone"`
+	}
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return Me{}, err
+	}
+	return Me{
+		AccountID:   raw.AccountID,
+		DisplayName: raw.DisplayName,
+		Email:       raw.EmailAddress,
+		TimeZone:    raw.TimeZone,
+		Site:        s.Site,
+	}, nil
+}
+
 // ---------- raw API shapes ----------
 
 type apiUser struct {
