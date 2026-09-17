@@ -1,0 +1,59 @@
+# GoReleaser configuration.
+#
+# First release (binaries only — works out of the box):
+#   git tag v0.1.0 && git push origin v0.1.0
+# The release workflow builds macOS + Linux binaries (Intel + Apple Silicon)
+# and attaches them to a GitHub Release.
+#
+# To add Homebrew (brew install cgast/tap/magpie), do these once, then
+# uncomment the `brews:` block at the bottom:
+#   1. Create a repo named exactly "homebrew-tap" under your GitHub owner.
+#   2. Create a Personal Access Token with `repo` scope.
+#   3. Add it as an Actions secret named HOMEBREW_TAP_GITHUB_TOKEN.
+#   4. Uncomment HOMEBREW_TAP_GITHUB_TOKEN in .github/workflows/release.yml.
+#
+# Owner is set to "cgast" throughout; change it if you move the repo.
+version: 2
+
+project_name: magpie
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/cgast/magpie/cmd.Version={{ .Version }}
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+# --- Homebrew tap (opt-in) ------------------------------------------------
+# Uncomment after completing the 4 steps above. Until then, releases produce
+# downloadable binaries without touching Homebrew.
+#
+# brews:
+#   - name: magpie
+#     repository:
+#       owner: cgast          # <-- your GitHub owner
+#       name: homebrew-tap
+#       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+#     homepage: "https://github.com/cgast/magpie"
+#     description: "Read-only CLI for Jira, Confluence, and Atlassian Goals"
+#     license: "MIT"
+#     install: |
+#       bin.install "magpie"
+#     test: |
+#       system "#{bin}/magpie", "version"

@@ -1,0 +1,39 @@
+name: release
+
+# Tag a version to cut a release:
+#   git tag v0.1.0 && git push origin v0.1.0
+# This builds macOS + Linux binaries (Intel + Apple Silicon) and, if the
+# Homebrew tap is configured, updates the formula so colleagues can
+#   brew install cgast/tap/magpie
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          # Creates the GitHub Release and uploads binaries.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Needed ONLY if the Homebrew tap lives in a separate repo
+          # (e.g. cgast/homebrew-tap). Create a PAT with repo scope and
+          # add it as a secret named HOMEBREW_TAP_GITHUB_TOKEN, then uncomment:
+          # HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
